@@ -1,0 +1,77 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart run build_runner build
+      - run: flutter analyze
+      - run: flutter test
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: macos
+            artifact: build/macos/Build/Products/Release
+          - os: macos-latest
+            target: ios
+            # Unsigned: CI has no signing identity.
+            extra_args: --no-codesign
+            artifact: build/ios/iphoneos
+          - os: ubuntu-latest
+            target: linux
+            artifact: build/linux/x64/release/bundle
+          - os: ubuntu-latest
+            target: apk
+            artifact: build/app/outputs/flutter-apk
+          - os: ubuntu-latest
+            target: web
+            artifact: build/web
+          - os: windows-latest
+            target: windows
+            artifact: build/windows/x64/runner/Release
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: matrix.target == 'apk'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: dart run build_runner build
+      - run: flutter build ${{ matrix.target }} --release ${{ matrix.extra_args }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chicken-foot-${{ matrix.target }}
+          path: ${{ matrix.artifact }}

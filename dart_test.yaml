@@ -1,0 +1,6 @@
+# The screenshot test renders goldens for eyeballing layout; it is not a
+# correctness check, so it stays out of the default `flutter test` run.
+# Run it with: flutter test test/screenshots_test.dart --run-skipped --update-goldens
+tags:
+  screenshots:
+    skip: "run explicitly with --tags screenshots"

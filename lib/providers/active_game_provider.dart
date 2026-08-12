@@ -48,11 +48,26 @@ class ActiveGameNotifier extends AsyncNotifier<Game?> {
 
   /// Records [entries] for round [roundIndex] and advances the game. Passing
   /// an index that already has a round re-scores it in place.
-  Future<Game> submitRound(int roundIndex, List<RoundEntry> entries) async {
+  ///
+  /// [startingDouble] is the double the round actually opened on, which is not
+  /// derivable from the index: under the house rule, doubles nobody holds get
+  /// burned and the round opens lower.
+  Future<Game> submitRound(
+    int roundIndex,
+    List<RoundEntry> entries, {
+    required int startingDouble,
+  }) async {
     final game = _game;
+    if (!game.canOpenRoundOn(roundIndex, startingDouble)) {
+      throw ArgumentError.value(
+        startingDouble,
+        'startingDouble',
+        'Round ${roundIndex + 1} cannot open on it',
+      );
+    }
     final round = Round(
       index: roundIndex,
-      startingDouble: game.rules.set.startingDoubleFor(roundIndex),
+      startingDouble: startingDouble,
       entries: entries,
       completedAt: DateTime.now(),
     );

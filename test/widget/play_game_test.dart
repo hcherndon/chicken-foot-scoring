@@ -84,32 +84,32 @@ void main() {
     );
     expect(find.textContaining('Double-6'), findsWidgets);
 
-    await tap(tester, find.textContaining('Start · 7 rounds'));
+    await tap(tester, find.textContaining('Start · up to 7 rounds'));
 
     // Round 1 of 7, opening on the double-6.
     expect(find.text('Standings'), findsOneWidget);
-    expect(find.textContaining('Score round 1 of 7'), findsOneWidget);
+    expect(find.textContaining('Score round 1'), findsOneWidget);
 
-    await tap(tester, find.textContaining('Score round 1 of 7'));
+    await tap(tester, find.textContaining('Score round 1'));
     expect(find.text('Round 1'), findsOneWidget);
     await scoreRound(tester, [10, 4, 0]);
 
     // Back on the scoreboard, ready for round 2.
-    expect(find.textContaining('Score round 2 of 7'), findsOneWidget);
+    expect(find.textContaining('Score round 2'), findsOneWidget);
 
     // Restart the app mid-game: the round just scored must still be there.
     await tester.pumpWidget(const SizedBox());
     await settle(tester, frames: 4);
     await launch(tester);
     expect(find.text('Continue game'), findsOneWidget);
-    expect(find.textContaining('Round 2 of 7'), findsOneWidget);
+    expect(find.textContaining('Round 2 · on the 5'), findsOneWidget);
     await tap(tester, find.text('Continue game'));
 
     // Play the remaining six rounds. Ann scores nothing after her bad start,
     // so she comes back to win on the lowest total: 10 against Bo's 40 and
     // Cy's 36.
     for (var round = 2; round <= 7; round++) {
-      await tap(tester, find.textContaining('Score round $round of 7'));
+      await tap(tester, find.textContaining('Score round $round'));
       await scoreRound(tester, [0, 6, 6]);
     }
 
@@ -129,6 +129,54 @@ void main() {
 
     // Tear the tree down inside the test so drift's stream watchers get a
     // chance to fire their timers before the binding checks for stragglers.
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('burning doubles ends the game before the round count runs out',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    await launch(tester);
+    await tap(tester, find.text('New game'));
+    await tester.enterText(find.byType(TextField).at(0), 'Ann');
+    await tester.enterText(find.byType(TextField).at(1), 'Bo');
+    await settle(tester);
+    await tap(
+      tester,
+      find.descendant(
+        of: find.byType(SegmentedButton<DominoSet>),
+        matching: find.text('6'),
+      ),
+    );
+    await tap(tester, find.textContaining('Start · up to 7 rounds'));
+
+    // Round 1: nobody holds the 6, so it burns and the round opens on the 5.
+    await tap(tester, find.textContaining('Score round 1'));
+    await tap(tester, find.textContaining('Nobody had the 6'));
+    expect(find.text('Opened on the double-5'), findsOneWidget);
+    await scoreRound(tester, [0, 9]);
+
+    // The sheet records what was burned, and round 2 wants the 4.
+    expect(find.textContaining('Burned the 6'), findsOneWidget);
+    expect(find.textContaining('Score round 2'), findsOneWidget);
+
+    // Round 2: everything down to the blank is missing, so the game ends here
+    // after two rounds instead of seven.
+    await tap(tester, find.textContaining('Score round 2'));
+    for (final value in [4, 3, 2, 1]) {
+      await tap(tester, find.textContaining('Nobody had the $value'));
+    }
+    expect(find.textContaining('Final round'), findsOneWidget);
+    await scoreRound(tester, [7, 0]);
+
+    expect(find.text('Results'), findsOneWidget);
+    expect(find.text('Ann wins'), findsOneWidget);
+    expect(find.textContaining('2 rounds'), findsOneWidget);
+    expect(find.textContaining('burned 6, 4, 3, 2, 1'), findsOneWidget);
+
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
   });

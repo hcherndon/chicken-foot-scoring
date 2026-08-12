@@ -5,14 +5,22 @@ import 'domino_set.dart';
 class GameRules {
   const GameRules({
     this.set = DominoSet.double9,
+    this.skipUnheldDoubles = true,
     this.doubleBlankPenaltyEnabled = true,
     this.doubleBlankPenalty = 50,
     this.endOnDoublePenaltyEnabled = false,
     this.endOnDoublePenalty = 50,
   });
 
-  /// Which domino set is in play. Sets the number of rounds.
+  /// Which domino set is in play. Sets the longest a game can run.
   final DominoSet set;
+
+  /// When a round's opening double turns out to be in nobody's hand, burn it
+  /// and open on the next double down instead of drawing until it appears.
+  ///
+  /// Burning doubles makes a game shorter than [maxRoundCount]. The
+  /// double-blank is never burned — the last round is always played.
+  final bool skipUnheldDoubles;
 
   /// Holding the 0–0 when a round ends costs [doubleBlankPenalty].
   final bool doubleBlankPenaltyEnabled;
@@ -22,13 +30,16 @@ class GameRules {
   final bool endOnDoublePenaltyEnabled;
   final int endOnDoublePenalty;
 
-  int get roundCount => set.roundCount;
+  /// The most rounds this game can run to. The actual count is only known once
+  /// the double-blank has been played.
+  int get maxRoundCount => set.maxRoundCount;
 
   /// Whether any per-player penalty toggles need to be shown during entry.
   bool get hasPenalties => doubleBlankPenaltyEnabled || endOnDoublePenaltyEnabled;
 
   GameRules copyWith({
     DominoSet? set,
+    bool? skipUnheldDoubles,
     bool? doubleBlankPenaltyEnabled,
     int? doubleBlankPenalty,
     bool? endOnDoublePenaltyEnabled,
@@ -36,6 +47,7 @@ class GameRules {
   }) {
     return GameRules(
       set: set ?? this.set,
+      skipUnheldDoubles: skipUnheldDoubles ?? this.skipUnheldDoubles,
       doubleBlankPenaltyEnabled:
           doubleBlankPenaltyEnabled ?? this.doubleBlankPenaltyEnabled,
       doubleBlankPenalty: doubleBlankPenalty ?? this.doubleBlankPenalty,
@@ -49,6 +61,7 @@ class GameRules {
   bool operator ==(Object other) =>
       other is GameRules &&
       other.set == set &&
+      other.skipUnheldDoubles == skipUnheldDoubles &&
       other.doubleBlankPenaltyEnabled == doubleBlankPenaltyEnabled &&
       other.doubleBlankPenalty == doubleBlankPenalty &&
       other.endOnDoublePenaltyEnabled == endOnDoublePenaltyEnabled &&
@@ -57,6 +70,7 @@ class GameRules {
   @override
   int get hashCode => Object.hash(
         set,
+        skipUnheldDoubles,
         doubleBlankPenaltyEnabled,
         doubleBlankPenalty,
         endOnDoublePenaltyEnabled,

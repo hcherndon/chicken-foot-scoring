@@ -7,6 +7,7 @@ import '../providers/active_game_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/score_grid.dart';
 import '../widgets/standings_list.dart';
+import 'round_entry_screen.dart';
 import 'scoreboard_screen.dart';
 
 /// The end of a game — or a read-only look at one from history.
@@ -26,7 +27,13 @@ class GameSummaryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+
+    // For a game that is still the active one, follow the provider so a round
+    // corrected from here redraws instead of showing a stale snapshot.
+    final live = readOnly ? null : ref.watch(activeGameProvider).valueOrNull;
+    final game = live?.id == this.game.id ? live! : this.game;
     final winners = game.winners;
+    final burned = game.burnedDoubles;
 
     return Scaffold(
       appBar: AppBar(
@@ -75,8 +82,10 @@ class GameSummaryScreen extends ConsumerWidget {
                     ],
                     const SizedBox(height: 8),
                     Text(
-                      '${game.rules.set.label} · ${game.rules.roundCount} rounds · '
-                      '${DateFormat.yMMMd().format(game.createdAt)}',
+                      '${game.rules.set.label} · '
+                      '${game.completedRounds.length} rounds'
+                      '${burned.isEmpty ? '' : ' · burned ${burned.join(', ')}'}'
+                      ' · ${DateFormat.yMMMd().format(game.createdAt)}',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
@@ -92,7 +101,16 @@ class GameSummaryScreen extends ConsumerWidget {
                 highlightLeader: false,
               ),
               const SizedBox(height: 24),
-              ScoreGrid(game: game),
+              ScoreGrid(
+                game: game,
+                onTapRound: readOnly
+                    ? null
+                    : (index) => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RoundEntryScreen(roundIndex: index),
+                          ),
+                        ),
+              ),
               const SizedBox(height: 24),
               if (!readOnly) ...[
                 FilledButton.icon(

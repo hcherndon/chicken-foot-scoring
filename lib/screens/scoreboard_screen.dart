@@ -99,12 +99,14 @@ class _ScoreboardBody extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
+                      flex: 4,
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(20, 12, 10, 20),
                         child: standings,
                       ),
                     ),
                     Expanded(
+                      flex: 6,
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(10, 12, 20, 20),
                         child: grid,
@@ -201,7 +203,7 @@ class _Grid extends StatelessWidget {
             if (game.hasStarted)
               Flexible(
                 child: Text(
-                  'Tap a round to fix it',
+                  'Tap a column to fix it',
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -262,7 +264,7 @@ class _NextRoundBar extends StatelessWidget {
                   : Row(
                       children: [
                         DominoTile(
-                          value: game.rules.set.startingDoubleFor(roundIndex),
+                          value: game.nextStartingDouble ?? 0,
                           height: 44,
                         ),
                         const SizedBox(width: 14),
@@ -275,8 +277,10 @@ class _NextRoundBar extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              'Score round ${roundIndex + 1} '
-                              'of ${game.rules.roundCount}',
+                              game.rules.skipUnheldDoubles
+                                  ? 'Score round ${roundIndex + 1}'
+                                  : 'Score round ${roundIndex + 1} '
+                                      'of ${game.rules.maxRoundCount}',
                             ),
                           ),
                         ),

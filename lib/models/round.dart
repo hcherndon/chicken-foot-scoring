@@ -56,17 +56,4 @@ class Round {
       completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
     );
   }
-
-  /// A blank round for [playerIds], ready to be filled in.
-  static Round empty({
-    required int index,
-    required int startingDouble,
-    required List<String> playerIds,
-  }) {
-    return Round(
-      index: index,
-      startingDouble: startingDouble,
-      entries: [for (final id in playerIds) RoundEntry(playerId: id)],
-    );
-  }
 }

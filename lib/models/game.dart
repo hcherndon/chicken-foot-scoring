@@ -23,8 +23,9 @@ class Game {
   /// Players in seat order.
   final List<Player> players;
 
-  /// Completed rounds, in order. A game in progress has fewer rounds than
-  /// [GameRules.roundCount].
+  /// Rounds in play order. A game in progress has fewer rounds than
+  /// [GameRules.maxRoundCount] — and so does a finished one if any doubles
+  /// were burned along the way.
   final List<Round> rounds;
 
   List<String> get playerIds => [for (final p in players) p.id];
@@ -32,21 +33,84 @@ class Game {
   List<Round> get completedRounds =>
       [for (final r in rounds) if (r.isComplete) r];
 
+  /// A game ends when the double-blank has been played, never on a count.
+  /// Under strict rules that lands on round [GameRules.maxRoundCount]; when
+  /// doubles are burned it lands sooner.
+  bool get isComplete =>
+      completedRounds.any((r) => r.startingDouble == _blank);
+
   /// Zero-based index of the round waiting to be scored, or null when done.
-  int? get currentRoundIndex {
-    final played = completedRounds.length;
-    return played >= rules.roundCount ? null : played;
+  int? get currentRoundIndex =>
+      isComplete ? null : completedRounds.length;
+
+  /// The double the next round should open on if everybody holds their share:
+  /// the set's highest to begin with, then one below whatever the last round
+  /// opened on. Null once the game is over.
+  ///
+  /// Under [GameRules.skipUnheldDoubles] the round may open lower than this if
+  /// nobody holds it — see [openableDoubles].
+  int? get nextStartingDouble {
+    if (isComplete) return null;
+    final played = completedRounds;
+    return played.isEmpty
+        ? rules.set.maxDouble
+        : played.last.startingDouble - 1;
   }
 
-  /// The double that opens the round waiting to be scored.
-  int? get currentStartingDouble {
-    final index = currentRoundIndex;
-    return index == null ? null : rules.set.startingDoubleFor(index);
+  /// Every double the upcoming round could legally open on, highest first.
+  /// One entry under strict rules; the whole remaining ladder when doubles can
+  /// be burned.
+  List<int> get openableDoubles {
+    final next = nextStartingDouble;
+    if (next == null) return const [];
+    if (!rules.skipUnheldDoubles) return [next];
+    return [for (var d = next; d >= _blank; d--) d];
   }
 
-  bool get isComplete => completedRounds.length >= rules.roundCount;
+  /// Doubles that nobody held, so they were never played. Highest first.
+  List<int> get burnedDoubles {
+    final played = {for (final r in completedRounds) r.startingDouble};
+    if (played.isEmpty) return const [];
+    final lowest = played.reduce((a, b) => a < b ? a : b);
+    return [
+      for (var d = rules.set.maxDouble; d >= lowest; d--)
+        if (!played.contains(d)) d,
+    ];
+  }
+
+  /// How many rounds could still be played, at most. Exact only once the
+  /// remaining doubles are all held.
+  int get maxRemainingRounds {
+    final next = nextStartingDouble;
+    return next == null ? 0 : next + 1;
+  }
+
+  /// The highest double round [roundIndex] may open on: one below whatever the
+  /// round before it opened on.
+  int highestOpenableFor(int roundIndex) {
+    final earlier = [
+      for (final r in completedRounds) if (r.index < roundIndex) r,
+    ];
+    return earlier.isEmpty
+        ? rules.set.maxDouble
+        : earlier.last.startingDouble - 1;
+  }
+
+  /// Whether round [roundIndex] may open on [startingDouble].
+  ///
+  /// Guards three things the UI already respects but the model must not take
+  /// on trust: no gaps in the round sequence, no opening on a double the
+  /// ladder has already passed, and no burning at all under strict rules.
+  bool canOpenRoundOn(int roundIndex, int startingDouble) {
+    if (roundIndex < 0 || roundIndex > completedRounds.length) return false;
+    final highest = highestOpenableFor(roundIndex);
+    if (startingDouble < _blank || startingDouble > highest) return false;
+    return rules.skipUnheldDoubles || startingDouble == highest;
+  }
 
   bool get hasStarted => completedRounds.isNotEmpty;
+
+  static const _blank = 0;
 
   Player playerById(String id) => players.firstWhere((p) => p.id == id);
 
@@ -170,8 +234,8 @@ class Game {
     }
     updated.sort((a, b) => a.index.compareTo(b.index));
 
-    final completed = updated.where((r) => r.isComplete).length;
-    final finished = completed >= rules.roundCount;
+    final finished =
+        updated.any((r) => r.isComplete && r.startingDouble == _blank);
     return copyWith(
       rounds: updated,
       completedAt: finished ? (completedAt ?? now ?? DateTime.now()) : null,

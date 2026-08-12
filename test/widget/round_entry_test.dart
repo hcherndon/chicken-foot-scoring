@@ -31,6 +31,12 @@ void main() {
     WidgetTester tester, {
     GameRules rules = const GameRules(set: DominoSet.double6),
   }) async {
+    // Tall enough for the opening-double card plus every player's row, so
+    // nothing under test sits below the fold.
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
     // Let the initial load settle first, the same way the home screen does
     // before it offers a "New game" button.
     await container.read(activeGameProvider.future);
@@ -171,5 +177,80 @@ void main() {
       container.read(activeGameProvider).requireValue!.completedRounds,
       isEmpty,
     );
+  });
+
+  testWidgets('opens on the set\'s highest double to start with',
+      (tester) async {
+    await pumpEntry(tester);
+    expect(find.text('Opened on the double-6'), findsOneWidget);
+    expect(find.text('Somebody held it.'), findsOneWidget);
+  });
+
+  testWidgets('burning a double nobody held drops the round one step',
+      (tester) async {
+    await pumpEntry(tester);
+
+    await tester.tap(find.textContaining('Nobody had the 6'));
+    await tester.pump();
+    expect(find.text('Opened on the double-5'), findsOneWidget);
+    expect(find.textContaining('Burned 6'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Nobody had the 5'));
+    await tester.pump();
+    expect(find.text('Opened on the double-4'), findsOneWidget);
+    expect(find.textContaining('Burned 6, 5'), findsOneWidget);
+  });
+
+  testWidgets('the burned double is what gets recorded for the round',
+      (tester) async {
+    await pumpEntry(tester);
+
+    await tester.tap(find.textContaining('Nobody had the 6'));
+    await tester.pump();
+    await tester.tap(find.text('Save round'));
+    await tester.pumpAndSettle();
+
+    final game = container.read(activeGameProvider).requireValue!;
+    expect(game.completedRounds.single.startingDouble, 5);
+    expect(game.burnedDoubles, [6]);
+    // Round two now wants the 4, not the 5.
+    expect(game.nextStartingDouble, 4);
+  });
+
+  testWidgets('a burn can be undone', (tester) async {
+    await pumpEntry(tester);
+
+    await tester.tap(find.textContaining('Nobody had the 6'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Put the 6 back'));
+    await tester.pump();
+
+    expect(find.text('Opened on the double-6'), findsOneWidget);
+    expect(find.byTooltip('Put the 6 back'), findsNothing);
+  });
+
+  testWidgets('the double-blank can never be burned', (tester) async {
+    await pumpEntry(tester);
+    for (var i = 0; i < 6; i++) {
+      await tester.tap(find.textContaining('Nobody had the ${6 - i}'));
+      await tester.pump();
+    }
+
+    expect(find.text('Opened on the double-0'), findsOneWidget);
+    expect(find.textContaining('Final round'), findsOneWidget);
+    expect(find.textContaining('Nobody had the'), findsNothing);
+  });
+
+  testWidgets('strict rules offer no way to burn a double', (tester) async {
+    await pumpEntry(
+      tester,
+      rules: const GameRules(
+        set: DominoSet.double6,
+        skipUnheldDoubles: false,
+      ),
+    );
+
+    expect(find.text('Opened on the double-6'), findsOneWidget);
+    expect(find.textContaining('Nobody had the'), findsNothing);
   });
 }

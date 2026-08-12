@@ -160,8 +160,8 @@ class _ResumeCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              if (game.currentStartingDouble != null)
-                DominoTile(value: game.currentStartingDouble!, height: 48),
+              if (game.nextStartingDouble != null)
+                DominoTile(value: game.nextStartingDouble!, height: 48),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -177,8 +177,9 @@ class _ResumeCard extends StatelessWidget {
                     Text(
                       roundIndex == null
                           ? 'Ready to finish'
-                          : 'Round ${roundIndex + 1} of ${game.rules.roundCount}'
-                              ' · ${game.players.length} players',
+                          : 'Round ${roundIndex + 1} · on the '
+                              '${game.nextStartingDouble} · '
+                              '${game.players.length} players',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),

@@ -58,8 +58,8 @@ class _StandingRow extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: highlighted
             ? scheme.primaryContainer.withValues(alpha: 0.55)
@@ -69,7 +69,7 @@ class _StandingRow extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 28,
+            width: 24,
             child: Text(
               '${standing.rank}',
               style: AppTheme.tabular.merge(
@@ -116,8 +116,8 @@ class _StandingRow extends StatelessWidget {
           Text(
             '${standing.total}',
             style: AppTheme.tabular.merge(
-              theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
+              theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),

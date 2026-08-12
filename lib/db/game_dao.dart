@@ -30,6 +30,7 @@ class GameDao extends DatabaseAccessor<AppDatabase> with _$GameDaoMixin {
           createdAt: game.createdAt,
           completedAt: Value(game.completedAt),
           maxDouble: game.rules.set.maxDouble,
+          skipUnheldDoubles: Value(game.rules.skipUnheldDoubles),
           doubleBlankPenaltyEnabled: game.rules.doubleBlankPenaltyEnabled,
           doubleBlankPenalty: game.rules.doubleBlankPenalty,
           endOnDoublePenaltyEnabled: game.rules.endOnDoublePenaltyEnabled,
@@ -193,6 +194,7 @@ class GameDao extends DatabaseAccessor<AppDatabase> with _$GameDaoMixin {
           completedAt: row.completedAt,
           rules: GameRules(
             set: DominoSet.fromMaxDouble(row.maxDouble),
+            skipUnheldDoubles: row.skipUnheldDoubles,
             doubleBlankPenaltyEnabled: row.doubleBlankPenaltyEnabled,
             doubleBlankPenalty: row.doubleBlankPenalty,
             endOnDoublePenaltyEnabled: row.endOnDoublePenaltyEnabled,

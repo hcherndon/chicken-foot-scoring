@@ -11,6 +11,10 @@ class Games extends Table {
   /// The set's highest double: 6, 9, 12 or 15.
   IntColumn get maxDouble => integer()();
 
+  /// House rule: burn a double nobody holds and open on the next one down.
+  BoolColumn get skipUnheldDoubles =>
+      boolean().withDefault(const Constant(true))();
+
   BoolColumn get doubleBlankPenaltyEnabled => boolean()();
   IntColumn get doubleBlankPenalty => integer()();
   BoolColumn get endOnDoublePenaltyEnabled => boolean()();

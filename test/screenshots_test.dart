@@ -46,7 +46,13 @@ void main() {
     const Player(id: 'd', name: 'Dee', seatOrder: 3),
   ];
 
-  Game gameWithRounds(int count, {GameRules rules = const GameRules()}) {
+  /// [openings] gives the double each round opened on; when omitted the game
+  /// walks the ladder without burning anything.
+  Game gameWithRounds(
+    int count, {
+    GameRules rules = const GameRules(),
+    List<int>? openings,
+  }) {
     var game = Game(
       id: 'g',
       createdAt: DateTime(2026, 8, 11),
@@ -71,7 +77,8 @@ void main() {
       game = game.withRound(
         Round(
           index: i,
-          startingDouble: rules.set.startingDoubleFor(i),
+          startingDouble:
+              openings == null ? rules.set.startingDoubleFor(i) : openings[i],
           completedAt: DateTime(2026, 8, 11, 13 + i),
           entries: [
             for (final (seat, player) in players.indexed)
@@ -124,7 +131,13 @@ void main() {
 
   testWidgets('scoreboard mid-game', (tester) async {
     await container.read(activeGameProvider.future);
-    await db.gameDao.save(gameWithRounds(4));
+    // Nobody held the 9 or the 6, so both were burned.
+    await db.gameDao.save(
+      gameWithRounds(
+        4,
+        openings: const [8, 7, 5, 4],
+      ),
+    );
     await container.read(activeGameProvider.notifier).resume('g');
     await shoot(tester, 'scoreboard', const ScoreboardScreen());
   });

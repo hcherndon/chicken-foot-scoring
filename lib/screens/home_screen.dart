@@ -177,9 +177,9 @@ class _ResumeCard extends StatelessWidget {
                     Text(
                       roundIndex == null
                           ? 'Ready to finish'
-                          : 'Round ${roundIndex + 1} · on the '
-                              '${game.nextStartingDouble} · '
-                              '${game.players.length} players',
+                          : 'Round ${roundIndex + 1} of '
+                              '${game.rules.roundCount} · on the '
+                              '${game.nextStartingDouble}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),

@@ -1,6 +1,7 @@
 import 'package:chicken_foot/db/database.dart';
 import 'package:chicken_foot/models/domino_set.dart';
 import 'package:chicken_foot/models/game_rules.dart';
+import 'package:chicken_foot/models/round_entry.dart';
 import 'package:chicken_foot/providers/active_game_provider.dart';
 import 'package:chicken_foot/providers/database_provider.dart';
 import 'package:chicken_foot/screens/round_entry_screen.dart';
@@ -30,6 +31,8 @@ void main() {
   Future<void> pumpEntry(
     WidgetTester tester, {
     GameRules rules = const GameRules(set: DominoSet.double6),
+    List<int> preplayed = const [],
+    int roundIndex = 0,
   }) async {
     // Tall enough for the opening-double card plus every player's row, so
     // nothing under test sits below the fold.
@@ -44,12 +47,24 @@ void main() {
           rules: rules,
           playerNames: const ['Ann', 'Bo', 'Cy'],
         );
+    final notifier = container.read(activeGameProvider.notifier);
+    final seated = container.read(activeGameProvider).requireValue!.players;
+    for (final (index, opening) in preplayed.indexed) {
+      await notifier.submitRound(
+        index,
+        [
+          for (final (seat, player) in seated.indexed)
+            RoundEntry(playerId: player.id, wentOut: seat == 0, pips: seat * 3),
+        ],
+        startingDouble: opening,
+      );
+    }
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
           theme: AppTheme.light(),
-          home: const RoundEntryScreen(roundIndex: 0),
+          home: RoundEntryScreen(roundIndex: roundIndex),
         ),
       ),
     );
@@ -186,22 +201,22 @@ void main() {
     expect(find.text('Somebody held it.'), findsOneWidget);
   });
 
-  testWidgets('burning a double nobody held drops the round one step',
+  testWidgets('skipping a double nobody held drops to the next one',
       (tester) async {
     await pumpEntry(tester);
 
     await tester.tap(find.textContaining('Nobody had the 6'));
     await tester.pump();
     expect(find.text('Opened on the double-5'), findsOneWidget);
-    expect(find.textContaining('Burned 6'), findsOneWidget);
+    expect(find.textContaining('Skipped 6'), findsOneWidget);
 
     await tester.tap(find.textContaining('Nobody had the 5'));
     await tester.pump();
     expect(find.text('Opened on the double-4'), findsOneWidget);
-    expect(find.textContaining('Burned 6, 5'), findsOneWidget);
+    expect(find.textContaining('Skipped 6, 5'), findsOneWidget);
   });
 
-  testWidgets('the burned double is what gets recorded for the round',
+  testWidgets('a skipped double is back in the pool for the next round',
       (tester) async {
     await pumpEntry(tester);
 
@@ -212,36 +227,59 @@ void main() {
 
     final game = container.read(activeGameProvider).requireValue!;
     expect(game.completedRounds.single.startingDouble, 5);
-    expect(game.burnedDoubles, [6]);
-    // Round two now wants the 4, not the 5.
-    expect(game.nextStartingDouble, 4);
+    // The 6 was not spent — round two goes looking for it again.
+    expect(game.nextStartingDouble, 6);
+    expect(game.remainingDoubles, [6, 4, 3, 2, 1, 0]);
+    expect(game.isComplete, isFalse);
   });
 
-  testWidgets('a burn can be undone', (tester) async {
+  testWidgets('a skip can be undone', (tester) async {
     await pumpEntry(tester);
 
     await tester.tap(find.textContaining('Nobody had the 6'));
     await tester.pump();
-    await tester.tap(find.byTooltip('Put the 6 back'));
+    await tester.tap(find.byTooltip('Go back up'));
     await tester.pump();
 
     expect(find.text('Opened on the double-6'), findsOneWidget);
-    expect(find.byTooltip('Put the 6 back'), findsNothing);
+    expect(find.byTooltip('Go back up'), findsNothing);
   });
 
-  testWidgets('the double-blank can never be burned', (tester) async {
+  testWidgets('cannot skip past the bottom of the pool', (tester) async {
     await pumpEntry(tester);
-    for (var i = 0; i < 6; i++) {
-      await tester.tap(find.textContaining('Nobody had the ${6 - i}'));
+    for (var value = 6; value > 0; value--) {
+      await tester.tap(find.textContaining('Nobody had the $value'));
       await tester.pump();
     }
 
     expect(find.text('Opened on the double-0'), findsOneWidget);
-    expect(find.textContaining('Final round'), findsOneWidget);
+    expect(find.textContaining('Nobody had the'), findsNothing);
+    // Everything passed over is still in play next round.
+    expect(find.textContaining('Skipped 6, 5, 4, 3, 2, 1'), findsOneWidget);
+  });
+
+  testWidgets('the last double left is drawn for, never skipped',
+      (tester) async {
+    // Six of the seven doubles are already spent.
+    await pumpEntry(
+      tester,
+      preplayed: const [6, 5, 4, 3, 2, 1],
+      roundIndex: 6,
+    );
+
+    expect(find.text('Opened on the double-0'), findsOneWidget);
+    expect(find.textContaining('Last double left'), findsOneWidget);
     expect(find.textContaining('Nobody had the'), findsNothing);
   });
 
-  testWidgets('strict rules offer no way to burn a double', (tester) async {
+  testWidgets('the round takes the highest double still unplayed',
+      (tester) async {
+    // Round one opened on the 5, so the 6 is still waiting.
+    await pumpEntry(tester, preplayed: const [5], roundIndex: 1);
+    expect(find.text('Opened on the double-6'), findsOneWidget);
+  });
+
+  testWidgets('strict rules offer no way to skip a double', (tester) async {
     await pumpEntry(
       tester,
       rules: const GameRules(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/active_game_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/app_palette.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -52,6 +53,12 @@ class SettingsScreen extends ConsumerWidget {
                 onSelectionChanged: (selection) => ref
                     .read(settingsProvider.notifier)
                     .setThemeMode(selection.first),
+              ),
+              const SizedBox(height: 16),
+              _PalettePicker(
+                selected: settings.valueOrNull?.palette ?? AppPalette.fallback,
+                onSelected: (palette) =>
+                    ref.read(settingsProvider.notifier).setPalette(palette),
               ),
               const SizedBox(height: 32),
               Text(
@@ -121,6 +128,58 @@ class SettingsScreen extends ConsumerWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('All games deleted.')),
+    );
+  }
+}
+
+/// Picks the colour the whole app is built from. Each row carries its own
+/// swatch, and hovering it previews that palette's accent.
+class _PalettePicker extends StatelessWidget {
+  const _PalettePicker({required this.selected, required this.onSelected});
+
+  final AppPalette selected;
+  final ValueChanged<AppPalette> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownMenu<AppPalette>(
+      initialSelection: selected,
+      expandedInsets: EdgeInsets.zero,
+      // Fifteen rows would otherwise cover the screen; let it scroll instead.
+      menuHeight: 340,
+      label: const Text('Colour'),
+      leadingIcon: Padding(
+        padding: const EdgeInsets.all(12),
+        child: PaletteSwatch(palette: selected),
+      ),
+      requestFocusOnTap: false,
+      onSelected: (palette) {
+        if (palette != null) onSelected(palette);
+      },
+      dropdownMenuEntries: [
+        for (final palette in AppPalette.values)
+          DropdownMenuEntry<AppPalette>(
+            value: palette,
+            label: palette.label,
+            leadingIcon: PaletteSwatch(palette: palette),
+            style: MenuItemButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ).copyWith(
+              // Hovering a row tints it with that palette's accent, so the
+              // pairing is visible before you commit to it.
+              overlayColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return palette.accent.withValues(alpha: 0.38);
+                }
+                if (states.contains(WidgetState.pressed)) {
+                  return palette.accent.withValues(alpha: 0.55);
+                }
+                return null;
+              }),
+            ),
+          ),
+      ],
     );
   }
 }

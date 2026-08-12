@@ -52,9 +52,9 @@ class _RoundEntryScreenState extends ConsumerState<RoundEntryScreen> {
         .where((r) => r.index == widget.roundIndex)
         .firstOrNull;
 
+    final options = game.openableDoublesFor(widget.roundIndex);
     _startingDouble = existing?.startingDouble ??
-        game.nextStartingDouble ??
-        game.rules.set.maxDouble;
+        (options.isEmpty ? game.rules.set.maxDouble : options.first);
 
     _entries = [
       for (final player in game.players)
@@ -149,14 +149,11 @@ class _RoundEntryScreenState extends ConsumerState<RoundEntryScreen> {
     final isRescore = game.rounds.any(
       (r) => r.index == widget.roundIndex && r.isComplete,
     );
-    // The opening double can only be changed for the round at the end of the
-    // sheet: rewriting an earlier one would strand every round after it.
-    final latestIndex = game.completedRounds.isEmpty
-        ? -1
-        : game.completedRounds.last.index;
-    final canChooseDouble = game.rules.skipUnheldDoubles &&
-        (widget.roundIndex >= latestIndex);
-    final highestOpenable = game.highestOpenableFor(widget.roundIndex);
+    // Doubles are a pool, not a sequence, so any round can be moved to any
+    // double no other round has taken.
+    final options = game.openableDoublesFor(widget.roundIndex);
+    final position = options.indexOf(_startingDouble);
+    final skipped = position <= 0 ? const <int>[] : options.sublist(0, position);
     final nobodyWentOut = !_entries.any((e) => e.wentOut);
 
     return Scaffold(
@@ -169,13 +166,17 @@ class _RoundEntryScreenState extends ConsumerState<RoundEntryScreen> {
             children: [
               _OpeningDouble(
                 value: _startingDouble,
-                highestOpenable: highestOpenable,
-                editable: canChooseDouble,
-                burned: [
-                  for (var d = highestOpenable; d > _startingDouble; d--) d,
-                ],
-                onBurn: () => setState(() => _startingDouble--),
-                onRestore: () => setState(() => _startingDouble++),
+                skipped: skipped,
+                // The last double in the pool cannot be skipped past — that
+                // is the one the table draws for.
+                nextDown: position >= 0 && position < options.length - 1
+                    ? options[position + 1]
+                    : null,
+                canRestore: position > 0,
+                onSkip: () =>
+                    setState(() => _startingDouble = options[position + 1]),
+                onRestore: () =>
+                    setState(() => _startingDouble = options[position - 1]),
               ),
               const SizedBox(height: 20),
               Text(
@@ -276,32 +277,30 @@ class _RoundEntryScreenState extends ConsumerState<RoundEntryScreen> {
   }
 }
 
-/// The double this round opened on, with a way to burn it when it turns out
+/// The double this round opened on, with a way to step down the pool when
 /// nobody holds it.
 class _OpeningDouble extends StatelessWidget {
   const _OpeningDouble({
     required this.value,
-    required this.highestOpenable,
-    required this.editable,
-    required this.burned,
-    required this.onBurn,
+    required this.skipped,
+    required this.nextDown,
+    required this.canRestore,
+    required this.onSkip,
     required this.onRestore,
   });
 
   final int value;
 
-  /// The highest double this round could have opened on.
-  final int highestOpenable;
+  /// Doubles tried and passed over on the way here, highest first.
+  final List<int> skipped;
 
-  final bool editable;
+  /// The next double to try if nobody holds this one, or null when this is
+  /// the last one left and must be drawn for.
+  final int? nextDown;
 
-  /// Doubles stepped past on the way down to [value], highest first.
-  final List<int> burned;
-
-  final VoidCallback onBurn;
+  final bool canRestore;
+  final VoidCallback onSkip;
   final VoidCallback onRestore;
-
-  bool get _isFinalRound => value == 0;
 
   @override
   Widget build(BuildContext context) {
@@ -333,13 +332,14 @@ class _OpeningDouble extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _isFinalRound
-                          ? 'Final round — the double-blank is always played, '
-                              'drawn for if need be.'
-                          : burned.isEmpty
-                              ? 'Somebody held it.'
-                              : 'Burned ${burned.join(', ')} — nobody held '
-                                  '${burned.length == 1 ? 'it' : 'them'}.',
+                      switch ((skipped.isEmpty, nextDown == null)) {
+                        (true, true) =>
+                          'Last double left — drawn for until it turns up.',
+                        (true, false) => 'Somebody held it.',
+                        (false, _) =>
+                          'Skipped ${skipped.join(', ')} — back in play '
+                              'next round.',
+                      },
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -349,17 +349,17 @@ class _OpeningDouble extends StatelessWidget {
               ),
             ],
           ),
-          if (editable && !(_isFinalRound && burned.isEmpty)) ...[
+          if (nextDown != null || canRestore) ...[
             const SizedBox(height: 12),
             Row(
               children: [
-                if (!_isFinalRound)
+                if (nextDown != null)
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: onBurn,
+                      onPressed: onSkip,
                       icon: const Icon(Icons.arrow_downward_rounded, size: 18),
                       label: Text(
-                        'Nobody had the $value — open on ${value - 1}',
+                        'Nobody had the $value — try the $nextDown',
                         textAlign: TextAlign.center,
                       ),
                       style: OutlinedButton.styleFrom(
@@ -371,10 +371,10 @@ class _OpeningDouble extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (value < highestOpenable) ...[
-                  if (!_isFinalRound) const SizedBox(width: 8),
+                if (canRestore) ...[
+                  if (nextDown != null) const SizedBox(width: 8),
                   IconButton.outlined(
-                    tooltip: 'Put the ${value + 1} back',
+                    tooltip: 'Go back up',
                     onPressed: onRestore,
                     icon: const Icon(Icons.undo_rounded, size: 18),
                   ),

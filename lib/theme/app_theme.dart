@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 
+import 'app_palette.dart';
+
 /// The app's visual language: one seed colour, Material 3, and score numerals
 /// that line up in columns.
 abstract final class AppTheme {
-  /// Felt-table green. Warm enough to feel like a game, calm enough to read.
-  static const seed = Color(0xFF2E7D5B);
+  static ThemeData light([AppPalette palette = AppPalette.fallback]) =>
+      _build(Brightness.light, palette);
 
-  static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
+  static ThemeData dark([AppPalette palette = AppPalette.fallback]) =>
+      _build(Brightness.dark, palette);
 
-  static ThemeData _build(Brightness brightness) {
+  static ThemeData _build(Brightness brightness, AppPalette palette) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: seed,
+      seedColor: palette.seed,
       brightness: brightness,
     );
     final base = ThemeData(colorScheme: scheme, useMaterial3: true);

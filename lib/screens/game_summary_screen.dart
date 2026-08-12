@@ -33,7 +33,6 @@ class GameSummaryScreen extends ConsumerWidget {
     final live = readOnly ? null : ref.watch(activeGameProvider).valueOrNull;
     final game = live?.id == this.game.id ? live! : this.game;
     final winners = game.winners;
-    final burned = game.burnedDoubles;
 
     return Scaffold(
       appBar: AppBar(
@@ -83,9 +82,8 @@ class GameSummaryScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text(
                       '${game.rules.set.label} · '
-                      '${game.completedRounds.length} rounds'
-                      '${burned.isEmpty ? '' : ' · burned ${burned.join(', ')}'}'
-                      ' · ${DateFormat.yMMMd().format(game.createdAt)}',
+                      '${game.completedRounds.length} rounds · '
+                      '${DateFormat.yMMMd().format(game.createdAt)}',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,

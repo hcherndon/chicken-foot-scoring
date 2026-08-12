@@ -4,27 +4,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/domino_set.dart';
 import '../models/game_rules.dart';
+import '../theme/app_palette.dart';
 
 /// Preferences that outlive a single game: the theme, and the setup the new
 /// game screen should pre-fill from last time.
 class Settings {
   const Settings({
     this.themeMode = ThemeMode.system,
+    this.palette = AppPalette.fallback,
     this.defaultRules = const GameRules(),
     this.lastPlayerNames = const [],
   });
 
   final ThemeMode themeMode;
+  final AppPalette palette;
   final GameRules defaultRules;
   final List<String> lastPlayerNames;
 
   Settings copyWith({
     ThemeMode? themeMode,
+    AppPalette? palette,
     GameRules? defaultRules,
     List<String>? lastPlayerNames,
   }) {
     return Settings(
       themeMode: themeMode ?? this.themeMode,
+      palette: palette ?? this.palette,
       defaultRules: defaultRules ?? this.defaultRules,
       lastPlayerNames: lastPlayerNames ?? this.lastPlayerNames,
     );
@@ -32,6 +37,7 @@ class Settings {
 }
 
 const _kThemeMode = 'themeMode';
+const _kPalette = 'palette';
 const _kMaxDouble = 'rules.maxDouble';
 const _kBlankEnabled = 'rules.doubleBlankEnabled';
 const _kBlankPenalty = 'rules.doubleBlankPenalty';
@@ -54,6 +60,7 @@ class SettingsNotifier extends AsyncNotifier<Settings> {
         (m) => m.name == _prefs.getString(_kThemeMode),
         orElse: () => ThemeMode.system,
       ),
+      palette: AppPalette.byName(_prefs.getString(_kPalette)),
       defaultRules: GameRules(
         set: DominoSet.fromMaxDouble(
           _prefs.getInt(_kMaxDouble) ?? fallback.set.maxDouble,
@@ -75,6 +82,13 @@ class SettingsNotifier extends AsyncNotifier<Settings> {
     await _prefs.setString(_kThemeMode, mode.name);
     state = AsyncData((state.valueOrNull ?? const Settings()).copyWith(
       themeMode: mode,
+    ));
+  }
+
+  Future<void> setPalette(AppPalette palette) async {
+    await _prefs.setString(_kPalette, palette.name);
+    state = AsyncData((state.valueOrNull ?? const Settings()).copyWith(
+      palette: palette,
     ));
   }
 

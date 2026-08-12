@@ -19,12 +19,11 @@ enum DominoSet {
 
   String get label => 'Double-$maxDouble';
 
-  /// The most rounds a game can run to: one per double, [maxDouble] down
-  /// through double-blank. A game can be shorter when the house rule that
-  /// burns doubles nobody holds is in play.
-  int get maxRoundCount => maxDouble + 1;
+  /// One round per double: every double gets played exactly once, so the
+  /// count is fixed even when rounds take them out of order.
+  int get roundCount => maxDouble + 1;
 
-  /// The double that opens round [roundIndex] when no doubles are burned.
+  /// The double that opens round [roundIndex] when none are ever skipped.
   int startingDoubleFor(int roundIndex) => maxDouble - roundIndex;
 
   /// Total pips across every domino in the set — the ceiling for any hand.

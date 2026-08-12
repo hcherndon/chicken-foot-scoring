@@ -277,10 +277,8 @@ class _NextRoundBar extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              game.rules.skipUnheldDoubles
-                                  ? 'Score round ${roundIndex + 1}'
-                                  : 'Score round ${roundIndex + 1} '
-                                      'of ${game.rules.maxRoundCount}',
+                              'Score round ${roundIndex + 1} '
+                              'of ${game.rules.roundCount}',
                             ),
                           ),
                         ),

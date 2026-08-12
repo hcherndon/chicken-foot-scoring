@@ -170,7 +170,7 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
                     ButtonSegment(
                       value: set,
                       label: Text('${set.maxDouble}'),
-                      tooltip: '${set.label} · up to ${set.maxRoundCount} rounds',
+                      tooltip: '${set.label} · ${set.roundCount} rounds',
                     ),
                 ],
                 selected: {_rules.set},
@@ -180,8 +180,7 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
               const SizedBox(height: 10),
               Text(
                 '${_rules.set.label} · ${_rules.set.tileCount} dominoes · '
-                '${_rules.skipUnheldDoubles ? 'up to ' : ''}'
-                '${_rules.maxRoundCount} rounds'
+                '${_rules.roundCount} rounds'
                 '${handSize == null ? '' : ' · deal $handSize each'}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
@@ -208,11 +207,12 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
                       value: _rules.skipUnheldDoubles,
                       onChanged: (value) => setState(() =>
                           _rules = _rules.copyWith(skipUnheldDoubles: value)),
-                      title: const Text('Burn doubles nobody holds'),
+                      title: const Text('Skip doubles nobody holds'),
                       subtitle: const Text(
                         'If no one can open on the round\u2019s double, drop to '
                         'the next one down instead of drawing for it. The '
-                        'double-blank is always played.',
+                        'skipped double goes back in the pool and the next '
+                        'round tries it again.',
                       ),
                     ),
                     const Divider(height: 1),
@@ -256,10 +256,7 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
               child: FilledButton.icon(
                 onPressed: _starting ? null : _start,
                 icon: const Icon(Icons.play_arrow_rounded),
-                label: Text(
-                  'Start · ${_rules.skipUnheldDoubles ? 'up to ' : ''}'
-                  '${_rules.maxRoundCount} rounds',
-                ),
+                label: Text('Start · ${_rules.roundCount} rounds'),
               ),
             ),
           ),

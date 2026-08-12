@@ -56,7 +56,7 @@ class ScoreGrid extends StatelessWidget {
       fontWeight: FontWeight.w600,
     );
     final cellStyle = AppTheme.tabular.merge(theme.textTheme.bodyMedium);
-    final burned = game.burnedDoubles;
+    final remaining = game.remainingDoubles;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -169,23 +169,23 @@ class ScoreGrid extends StatelessWidget {
             ],
           ),
         ),
-        if (burned.isNotEmpty)
+        if (remaining.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 10, left: 4, right: 4),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
-                  Icons.local_fire_department_outlined,
+                  Icons.hourglass_empty_rounded,
                   size: 16,
                   color: scheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    burned.length == 1
-                        ? 'Burned the ${burned.single} — nobody held it'
-                        : 'Burned ${burned.join(', ')} — nobody held them',
+                    remaining.length == 1
+                        ? 'Still to play: the ${remaining.single}'
+                        : 'Still to play: ${remaining.join(', ')}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),

@@ -30,17 +30,17 @@ Round _round(int index, int startingDouble, List<RoundEntry> entries) => Round(
 void main() {
   group('DominoSet', () {
     test('round count is one per double down to double-blank', () {
-      expect(DominoSet.double6.maxRoundCount, 7);
-      expect(DominoSet.double9.maxRoundCount, 10);
-      expect(DominoSet.double12.maxRoundCount, 13);
-      expect(DominoSet.double15.maxRoundCount, 16);
+      expect(DominoSet.double6.roundCount, 7);
+      expect(DominoSet.double9.roundCount, 10);
+      expect(DominoSet.double12.roundCount, 13);
+      expect(DominoSet.double15.roundCount, 16);
     });
 
     test('rounds step down from the highest double to zero', () {
       final set = DominoSet.double9;
       expect(set.startingDoubleFor(0), 9);
       expect(set.startingDoubleFor(1), 8);
-      expect(set.startingDoubleFor(set.maxRoundCount - 1), 0);
+      expect(set.startingDoubleFor(set.roundCount - 1), 0);
     });
 
     test('total pips matches the known set totals', () {
@@ -128,7 +128,7 @@ void main() {
 
     test('is complete after one round per double', () {
       var game = _game();
-      for (var i = 0; i < DominoSet.double6.maxRoundCount; i++) {
+      for (var i = 0; i < DominoSet.double6.roundCount; i++) {
         game = game.withRound(_round(i, 6 - i, const [
           RoundEntry(playerId: 'a', wentOut: true),
           RoundEntry(playerId: 'b', pips: 2),
@@ -234,7 +234,7 @@ void main() {
   group('Winner', () {
     Game playOut(List<int> perRoundPipsForA) {
       var game = _game();
-      for (var i = 0; i < DominoSet.double6.maxRoundCount; i++) {
+      for (var i = 0; i < DominoSet.double6.roundCount; i++) {
         game = game.withRound(_round(i, 6 - i, [
           RoundEntry(playerId: 'a', pips: perRoundPipsForA[i]),
           const RoundEntry(playerId: 'b', pips: 5),
@@ -259,12 +259,12 @@ void main() {
     });
   });
 
-  _burningDoubles();
+  _skippingDoubles();
   _openingValidation();
 }
 
-void _burningDoubles() {
-  group('Burning doubles nobody holds', () {
+void _skippingDoubles() {
+  group('Skipping doubles nobody holds', () {
     Game gameWith(List<int> doubles, {bool skip = true}) {
       var game = _game(
         rules: GameRules(set: DominoSet.double6, skipUnheldDoubles: skip),
@@ -279,89 +279,83 @@ void _burningDoubles() {
       return game;
     }
 
-    test('the next round opens one below whatever the last one opened on', () {
-      // Nobody held the 6, so round 1 opened on the 5 — round 2 wants the 4.
+    test('a skipped double comes back for the next round', () {
+      // Nobody held the 6, so round 1 opened on the 5.
       final game = gameWith([5]);
+      // Round 2 tries the 6 again, not the 4.
+      expect(game.nextStartingDouble, 6);
+      expect(game.remainingDoubles, [6, 4, 3, 2, 1, 0]);
+    });
+
+    test('once the skipped double is played the pool moves on', () {
+      // Round 1 opened on the 5, round 2 came back and got the 6.
+      final game = gameWith([5, 6]);
+      // Both are spent, so round 3 tries the 4.
       expect(game.nextStartingDouble, 4);
-      expect(game.currentRoundIndex, 1);
+      expect(game.remainingDoubles, [4, 3, 2, 1, 0]);
     });
 
-    test('lists the doubles that were never played', () {
-      final game = gameWith([5, 2]);
-      expect(game.burnedDoubles, [6, 4, 3]);
-    });
-
-    test('reports nothing burned when the ladder is walked in order', () {
-      expect(gameWith([6, 5, 4]).burnedDoubles, isEmpty);
-    });
-
-    test('ends on the double-blank however early it arrives', () {
-      final game = gameWith([5, 0]);
-      expect(game.isComplete, isTrue);
-      expect(game.completedAt, isNotNull);
-      expect(game.nextStartingDouble, isNull);
-      expect(game.currentRoundIndex, isNull);
-      // Two rounds played out of a possible seven.
-      expect(game.completedRounds, hasLength(2));
-      expect(game.burnedDoubles, [6, 4, 3, 2, 1]);
-    });
-
-    test('is not complete just because the round count was reached', () {
-      // Seven rounds, none of them the blank: the game is still running.
-      final game = gameWith([6, 5, 4, 3, 2, 1]);
-      expect(game.completedRounds, hasLength(6));
-      expect(game.isComplete, isFalse);
-      expect(game.nextStartingDouble, 0);
-    });
-
-    test('offers the whole remaining ladder to open on', () {
+    test('the pool is what a round may open on, highest first', () {
       expect(gameWith([]).openableDoubles, [6, 5, 4, 3, 2, 1, 0]);
-      expect(gameWith([4]).openableDoubles, [3, 2, 1, 0]);
-      expect(gameWith([4, 0]).openableDoubles, isEmpty);
+      expect(gameWith([5]).openableDoubles, [6, 4, 3, 2, 1, 0]);
+      expect(gameWith([5, 6]).openableDoubles, [4, 3, 2, 1, 0]);
     });
 
-    test('offers only the next double when the rule is off', () {
+    test('offers only the highest remaining double when the rule is off', () {
       expect(gameWith([], skip: false).openableDoubles, [6]);
       expect(gameWith([6], skip: false).openableDoubles, [5]);
     });
 
-    test('counts the rounds that could still be played', () {
-      expect(gameWith([]).maxRemainingRounds, 7);
-      expect(gameWith([5]).maxRemainingRounds, 5);
-      expect(gameWith([5, 0]).maxRemainingRounds, 0);
-    });
-
-    test('bounds a round by the double the round before it opened on', () {
-      final game = gameWith([5, 3]);
-      expect(game.highestOpenableFor(0), 6);
-      expect(game.highestOpenableFor(1), 4);
-      expect(game.highestOpenableFor(2), 2);
-    });
-
-    test('re-scoring the last round on a lower double shortens the game', () {
-      var game = gameWith([6, 5]);
-      expect(game.isComplete, isFalse);
-      // Turns out that second round actually opened on the blank.
-      game = game.withRound(_round(1, 0, const [
-        RoundEntry(playerId: 'a', wentOut: true),
-        RoundEntry(playerId: 'b', pips: 4),
-        RoundEntry(playerId: 'c', pips: 6),
-      ]));
+    test('every double is played exactly once, so the count is fixed', () {
+      final game = gameWith([5, 6, 3, 4, 0, 2, 1]);
+      expect(game.completedRounds, hasLength(7));
       expect(game.isComplete, isTrue);
-      expect(game.burnedDoubles, [5, 4, 3, 2, 1]);
+      expect(game.completedAt, isNotNull);
+      expect(game.remainingDoubles, isEmpty);
+      expect(game.nextStartingDouble, isNull);
+      expect(game.currentRoundIndex, isNull);
     });
 
-    test('re-scoring away from the blank reopens the game', () {
-      var game = gameWith([6, 0]);
-      expect(game.isComplete, isTrue);
-      game = game.withRound(_round(1, 5, const [
-        RoundEntry(playerId: 'a', wentOut: true),
-        RoundEntry(playerId: 'b', pips: 4),
-        RoundEntry(playerId: 'c', pips: 6),
-      ]));
+    test('is not finished while any double is still unplayed', () {
+      // Six rounds in, but the 6 was skipped early and never came back.
+      final game = gameWith([5, 4, 3, 2, 1, 0]);
+      expect(game.completedRounds, hasLength(6));
       expect(game.isComplete, isFalse);
-      expect(game.completedAt, isNull);
-      expect(game.nextStartingDouble, 4);
+      expect(game.remainingDoubles, [6]);
+      expect(game.nextStartingDouble, 6);
+    });
+
+    test('playing the blank early does not end the game', () {
+      final game = gameWith([0]);
+      expect(game.isComplete, isFalse);
+      expect(game.nextStartingDouble, 6);
+      expect(game.remainingDoubles, [6, 5, 4, 3, 2, 1]);
+    });
+
+    test('the last double left cannot be skipped past', () {
+      final game = gameWith([6, 5, 4, 3, 2, 1]);
+      expect(game.openableDoubles, [0]);
+      expect(game.remainingRounds, 1);
+    });
+
+    test('counts the rounds still to play', () {
+      expect(gameWith([]).remainingRounds, 7);
+      expect(gameWith([5]).remainingRounds, 6);
+      expect(gameWith([5, 6, 4]).remainingRounds, 4);
+    });
+
+    test('reports the doubles a round passed over on its way down', () {
+      final game = gameWith([4, 6]);
+      // Round 1 tried the 6 and the 5 before settling on the 4.
+      expect(game.skippedIn(game.completedRounds[0]), [6, 5]);
+      // Round 2 came back and got the 6 first time.
+      expect(game.skippedIn(game.completedRounds[1]), isEmpty);
+    });
+
+    test('a round that took the top double skipped nothing', () {
+      final game = gameWith([6, 5]);
+      expect(game.skippedIn(game.completedRounds[0]), isEmpty);
+      expect(game.skippedIn(game.completedRounds[1]), isEmpty);
     });
   });
 }
@@ -382,22 +376,23 @@ void _openingValidation() {
       return game;
     }
 
-    test('accepts anything from the next double down to the blank', () {
+    test('accepts any double still in the pool', () {
       final game = gameWith([]);
       for (var d = 6; d >= 0; d--) {
         expect(game.canOpenRoundOn(0, d), isTrue, reason: 'double $d');
       }
     });
 
-    test('refuses a double the ladder has already passed', () {
+    test('refuses a double another round already took', () {
       final game = gameWith([4]);
-      expect(game.canOpenRoundOn(1, 3), isTrue);
       expect(game.canOpenRoundOn(1, 4), isFalse);
-      expect(game.canOpenRoundOn(1, 6), isFalse);
+      expect(game.canOpenRoundOn(1, 6), isTrue);
+      expect(game.canOpenRoundOn(1, 0), isTrue);
     });
 
-    test('refuses a negative double', () {
+    test('refuses a double outside the set', () {
       expect(gameWith([]).canOpenRoundOn(0, -1), isFalse);
+      expect(gameWith([]).canOpenRoundOn(0, 7), isFalse);
     });
 
     test('refuses a round index that would leave a gap', () {
@@ -407,22 +402,25 @@ void _openingValidation() {
       expect(game.canOpenRoundOn(-1, 5), isFalse);
     });
 
-    test('allows re-scoring a round already played', () {
-      final game = gameWith([6, 5]);
-      expect(game.canOpenRoundOn(0, 6), isTrue);
-      expect(game.canOpenRoundOn(1, 4), isTrue);
+    test('lets a played round move to any double still free', () {
+      final game = gameWith([5, 6]);
+      // Round 0 can go back to its own double, or take any unplayed one.
+      expect(game.canOpenRoundOn(0, 5), isTrue);
+      expect(game.canOpenRoundOn(0, 4), isTrue);
+      // But not the one round 1 is sitting on.
+      expect(game.canOpenRoundOn(0, 6), isFalse);
     });
 
-    test('refuses any double but the next one under strict rules', () {
+    test('refuses any double but the highest under strict rules', () {
       final game = gameWith([6], skip: false);
       expect(game.canOpenRoundOn(1, 5), isTrue);
       expect(game.canOpenRoundOn(1, 4), isFalse);
       expect(game.canOpenRoundOn(1, 0), isFalse);
     });
 
-    test('refuses to add a round after the blank has been played', () {
-      final game = gameWith([6, 0]);
-      expect(game.canOpenRoundOn(2, 0), isFalse);
+    test('refuses another round once every double is spent', () {
+      final game = gameWith([6, 5, 4, 3, 2, 1, 0]);
+      expect(game.canOpenRoundOn(7, 0), isFalse);
     });
   });
 }

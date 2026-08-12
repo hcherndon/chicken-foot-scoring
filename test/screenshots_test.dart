@@ -13,11 +13,15 @@ import 'package:chicken_foot/providers/database_provider.dart';
 import 'package:chicken_foot/screens/game_summary_screen.dart';
 import 'package:chicken_foot/screens/round_entry_screen.dart';
 import 'package:chicken_foot/screens/scoreboard_screen.dart';
+import 'package:chicken_foot/screens/settings_screen.dart';
+import 'package:chicken_foot/theme/app_palette.dart';
 import 'package:chicken_foot/theme/app_theme.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:chicken_foot/providers/settings_provider.dart';
 
 /// Renders key screens to PNGs under `test/goldens/` for eyeballing layout.
 ///
@@ -101,6 +105,8 @@ void main() {
     Widget screen, {
     Size size = const Size(420, 860),
     Brightness brightness = Brightness.light,
+    AppPalette palette = AppPalette.fallback,
+    Future<void> Function(WidgetTester)? interact,
   }) async {
     tester.view.physicalSize = size * 2;
     tester.view.devicePixelRatio = 2;
@@ -112,14 +118,20 @@ void main() {
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: brightness == Brightness.light
-              ? AppTheme.light()
-              : AppTheme.dark(),
+              ? AppTheme.light(palette)
+              : AppTheme.dark(palette),
           home: screen,
         ),
       ),
     );
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 40));
+    }
+    if (interact != null) {
+      await interact(tester);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 40));
+      }
     }
     await expectLater(
       find.byType(MaterialApp),
@@ -182,5 +194,30 @@ void main() {
       rules: const GameRules(set: DominoSet.double9),
     );
     await shoot(tester, 'results', GameSummaryScreen(game: game));
+  });
+
+  testWidgets('settings with the palette picker open', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await container.read(settingsProvider.future);
+    await shoot(
+      tester,
+      'palette_picker',
+      const SettingsScreen(),
+      interact: (tester) async {
+        await tester.tap(find.byType(DropdownMenu<AppPalette>));
+      },
+    );
+  });
+
+  testWidgets('a scoreboard in a different palette', (tester) async {
+    await container.read(activeGameProvider.future);
+    await db.gameDao.save(gameWithRounds(4, openings: const [8, 7, 5, 4]));
+    await container.read(activeGameProvider.notifier).resume('g');
+    await shoot(
+      tester,
+      'scoreboard_plum',
+      const ScoreboardScreen(),
+      palette: AppPalette.plum,
+    );
   });
 }

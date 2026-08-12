@@ -15,11 +15,14 @@ class GameRules {
   /// Which domino set is in play. Sets the longest a game can run.
   final DominoSet set;
 
-  /// When a round's opening double turns out to be in nobody's hand, burn it
-  /// and open on the next double down instead of drawing until it appears.
+  /// When a round's opening double turns out to be in nobody's hand, skip
+  /// down to the next one instead of drawing until it appears.
   ///
-  /// Burning doubles makes a game shorter than [maxRoundCount]. The
-  /// double-blank is never burned — the last round is always played.
+  /// A skipped double is not spent: it goes back in the pool and the next
+  /// round tries it again first. Every double is still played exactly once,
+  /// so the game is [roundCount] rounds either way — the doubles just come
+  /// out of order. The last double standing cannot be skipped; it is drawn
+  /// for.
   final bool skipUnheldDoubles;
 
   /// Holding the 0–0 when a round ends costs [doubleBlankPenalty].
@@ -30,9 +33,8 @@ class GameRules {
   final bool endOnDoublePenaltyEnabled;
   final int endOnDoublePenalty;
 
-  /// The most rounds this game can run to. The actual count is only known once
-  /// the double-blank has been played.
-  int get maxRoundCount => set.maxRoundCount;
+  /// How many rounds the game runs to: one per double in the set.
+  int get roundCount => set.roundCount;
 
   /// Whether any per-player penalty toggles need to be shown during entry.
   bool get hasPenalties => doubleBlankPenaltyEnabled || endOnDoublePenaltyEnabled;

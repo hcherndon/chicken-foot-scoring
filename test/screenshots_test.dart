@@ -143,11 +143,12 @@ void main() {
 
   testWidgets('scoreboard mid-game', (tester) async {
     await container.read(activeGameProvider.future);
-    // Nobody held the 9 or the 6, so both were burned.
+    // Played out of order: the 9 was skipped and picked up next round, then
+    // the 7 and 6 were skipped and the 7 came back.
     await db.gameDao.save(
       gameWithRounds(
         4,
-        openings: const [8, 7, 5, 4],
+        openings: const [8, 9, 5, 7],
       ),
     );
     await container.read(activeGameProvider.notifier).resume('g');
@@ -211,7 +212,7 @@ void main() {
 
   testWidgets('a scoreboard in a different palette', (tester) async {
     await container.read(activeGameProvider.future);
-    await db.gameDao.save(gameWithRounds(4, openings: const [8, 7, 5, 4]));
+    await db.gameDao.save(gameWithRounds(4, openings: const [8, 9, 5, 7]));
     await container.read(activeGameProvider.notifier).resume('g');
     await shoot(
       tester,

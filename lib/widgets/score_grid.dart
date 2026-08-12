@@ -30,7 +30,10 @@ class ScoreGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final rounds = game.completedRounds;
+    // Read like the paper sheet: highest double on the left, down to the
+    // blank — not the order the rounds happened to come out in.
+    final rounds = [...game.completedRounds]
+      ..sort((a, b) => b.startingDouble.compareTo(a.startingDouble));
 
     if (rounds.isEmpty) {
       return Container(
@@ -94,51 +97,45 @@ class ScoreGrid extends StatelessWidget {
                 ],
               ),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    // Right-align to keep the newest round in view, but only
-                    // once the rounds actually overflow — otherwise they would
-                    // float away from the names with a gap in between.
-                    reverse: rounds.length * _roundWidth > constraints.maxWidth,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final round in rounds)
-                          // The whole column is one target — a 44px header alone
-                          // is a fussy thing to hit.
-                          InkWell(
-                            onTap: onTapRound == null
-                                ? null
-                                : () => onTapRound!(round.index),
-                            child: Column(
-                              children: [
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final round in rounds)
+                        // The whole column is one target — a 44px header alone
+                        // is a fussy thing to hit.
+                        InkWell(
+                          onTap: onTapRound == null
+                              ? null
+                              : () => onTapRound!(round.index),
+                          child: Column(
+                            children: [
+                              _cell(
+                                width: _roundWidth,
+                                height: _headerHeight,
+                                child: DominoTile(
+                                  value: round.startingDouble,
+                                  height: 32,
+                                ),
+                              ),
+                              for (final player in game.players)
                                 _cell(
                                   width: _roundWidth,
-                                  height: _headerHeight,
-                                  child: DominoTile(
-                                    value: round.startingDouble,
-                                    height: 32,
+                                  child: Text(
+                                    '${round.scoreFor(player.id, game.rules)}',
+                                    style: round.wentOutPlayerId == player.id
+                                        ? cellStyle.copyWith(
+                                            color: scheme.primary,
+                                            fontWeight: FontWeight.w700,
+                                          )
+                                        : cellStyle,
                                   ),
                                 ),
-                                for (final player in game.players)
-                                  _cell(
-                                    width: _roundWidth,
-                                    child: Text(
-                                      '${round.scoreFor(player.id, game.rules)}',
-                                      style: round.wentOutPlayerId == player.id
-                                          ? cellStyle.copyWith(
-                                              color: scheme.primary,
-                                              fontWeight: FontWeight.w700,
-                                            )
-                                          : cellStyle,
-                                    ),
-                                  ),
-                              ],
-                            ),
+                            ],
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),

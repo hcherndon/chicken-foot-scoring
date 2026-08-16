@@ -74,7 +74,36 @@ flutter build linux              # must run on Linux
 flutter build web
 ```
 
-Desktop binaries can only be produced on their own OS. The GitHub Actions workflow in `.github/workflows/build.yml` builds macOS, Linux, Windows, Android and web on every push.
+Desktop binaries can only be produced on their own OS.
+
+## Deploying the web build
+
+It compiles to static files, so it wants a file server and nothing else. `Dockerfile` builds it, `nginx.conf` serves it:
+
+```sh
+docker build -t chicken-foot .
+docker run --rm -p 8080:8080 chicken-foot
+```
+
+The build stage pins Flutter by version *and* SHA-256, runs `build_runner` (the drift code is gitignored, so it has to be generated inside the image), runs the test suite, and builds the web release. The runtime stage is nginx over the output, with no toolchain left in it.
+
+On **Coolify**: point an application at this repo, choose the Dockerfile build pack, set the port to **8080**. That is the whole setup — TLS and the domain belong to Coolify's proxy, and `/healthz` is there for its health check.
+
+| Build arg | Default | For |
+| --- | --- | --- |
+| `BASE_HREF` | `/` | Serving from a subpath, e.g. `/score/` — leading *and* trailing slash required |
+| `RUN_TESTS` | `1` | Set to `0` to deploy without running the suite |
+| `FLUTTER_VERSION`, `FLUTTER_SHA256` | 3.44.9 | Bump together; the checksum is in Flutter's [`releases_linux.json`](https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json) |
+
+Four things the config does on purpose:
+
+- **Everything is `Cache-Control: no-cache`.** Nothing Flutter emits carries a content hash in its filename — `main.dart.js` and `canvaskit.wasm` keep the same path from one release to the next — so any long `max-age` eventually serves a stale app. Revalidating instead turns an unchanged 7 MB engine into a 304.
+- **Assets are precompressed during the build** and served with `gzip_static`. That keeps a cold load off the CPU and leaves the ETag strong, which is what the caching above rests on. `main.dart.js` is 2.9 MB raw, 862 KB gzipped.
+- **The engine is served from the image, not Google.** `flutter build web` defaults to loading CanvasKit from `gstatic.com`, which would leave a self-hosted copy quietly unable to render without reaching out to a third party. `--no-web-resources-cdn` turns that off, and is what makes the `canvaskit/` directory in the image worth shipping.
+- **`.wasm` is pinned to `application/wasm`.** `WebAssembly.instantiateStreaming` rejects anything else, and both `sqlite3.wasm` and the engine load that way.
+- **Cross-origin isolation is off**, commented out at the top of `nginx.conf`. Switching it on buys drift's OPFS-shared backend and Flutter's multithreaded renderer; leaving it off costs a little speed and nothing else.
+
+There is no CI. The suite runs inside the image build, so a red test fails the deploy.
 
 ## Tests
 
@@ -103,8 +132,8 @@ lib/
 
 Scoring is deliberately kept out of the database and the UI: `Game`, `Round` and `RoundEntry` are immutable value types, so the rules can be tested without either.
 
-Every round is written to SQLite the moment it is saved, so quitting mid-game loses nothing — the home screen offers to pick up where you left off. A round's opening double is stored with it rather than derived from its position, which is what makes a burned double a fact about the game rather than a guess.
+Every round is written to SQLite the moment it is saved, so quitting mid-game loses nothing — the home screen offers to pick up where you left off. A round's opening double is stored with it rather than derived from its position, which is what makes a skipped double a fact about the game rather than a guess.
 
 Doubles are modelled as a pool rather than a descending sequence: a game is finished when the pool is empty, and a round may open on anything still in it. Both the house rule and the official rule fall out of that, and it is why re-scoring an earlier round can move it to any double no other round has taken.
 
-**Data stays on the device.** There is no account, no sync, and no backup. Deleting the app deletes the history with it.
+**Data stays on the device.** There is no account, no sync, and no backup. Deleting the app deletes the history with it. On the web that device is the browser: history lives in that origin's storage, clearing site data clears it, and a deployed copy shares nothing with a native install.

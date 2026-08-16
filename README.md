@@ -93,6 +93,7 @@ On **Coolify**: point an application at this repo, choose the Dockerfile build p
 | --- | --- | --- |
 | `BASE_HREF` | `/` | Serving from a subpath, e.g. `/score/` — leading *and* trailing slash required |
 | `RUN_TESTS` | `1` | Set to `0` to deploy without running the suite |
+| `SITE_URL` | unset | The origin it is served from, e.g. `https://chickenfoot.example` — makes the link-preview image absolute |
 | `FLUTTER_VERSION`, `FLUTTER_SHA256` | 3.44.9 | Bump together; the checksum is in Flutter's [`releases_linux.json`](https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json) |
 
 Four things the config does on purpose:
@@ -105,6 +106,18 @@ Four things the config does on purpose:
 
 There is no CI. The suite runs inside the image build, so a red test fails the deploy.
 
+### Link previews
+
+Pasting the URL into Discord, Slack or iMessage unfurls the Open Graph tags in `web/index.html` and the card at `web/og-image.png`.
+
+That card is checked in rather than generated during the build — the crawler fetching it is reading a static file and never runs Flutter. It is drawn by `test/og_image_test.dart` out of the app's own `DominoTile` and palette, so it cannot drift away from the app's look:
+
+```sh
+flutter test test/og_image_test.dart --run-skipped --update-goldens
+```
+
+The image is referenced relatively so it survives a subpath deploy, and crawlers do resolve that. Open Graph asks for an absolute URL, though, so pass `--build-arg SITE_URL=https://your.domain` to have the build rewrite it.
+
 ## Tests
 
 ```sh
@@ -116,7 +129,7 @@ flutter test
 - `test/db/` — SQLite round-trips, cascading deletes, resuming an unfinished game, and the v1→v2 migration against a hand-built version 1 database.
 - `test/widget/` — round entry behaviour, the theme picker, and two full games played through the real widget tree: one straight down the ladder, one where a skipped double comes back and is played later.
 
-`test/screenshots_test.dart` renders key screens to `test/goldens/` for eyeballing layout. It is skipped by default; run it with `flutter test test/screenshots_test.dart --run-skipped --update-goldens`.
+`test/screenshots_test.dart` renders key screens to `test/goldens/` for eyeballing layout. It is skipped by default; run it with `flutter test test/screenshots_test.dart --run-skipped --update-goldens`. Text comes out as black bars — `flutter test` ships no real fonts, which does not matter when the point is layout. `test/og_image_test.dart` draws the link-preview card the same way and does load a font, since there the point is the title.
 
 ## How it's built
 

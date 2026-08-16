@@ -27,6 +27,11 @@ ARG BASE_HREF=/
 # Pass --build-arg RUN_TESTS=0 to skip it.
 ARG RUN_TESTS=1
 
+# The origin the app is served from, e.g. --build-arg SITE_URL=https://example.com.
+# Only the link-preview tags use it, and only to turn the relative og:image into
+# an absolute one. Left unset they stay relative, which crawlers do resolve.
+ARG SITE_URL=
+
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -66,6 +71,18 @@ RUN if [ "${RUN_TESTS}" = "1" ]; then flutter test; fi
 # and pulls the engine from www.gstatic.com instead — so the app would need
 # Google reachable to render at all, and every byte below would be dead weight.
 RUN flutter build web --release --no-web-resources-cdn --base-href "${BASE_HREF}"
+
+# The preview card is checked in and copied out verbatim. Both steps assert
+# rather than assume: if the file stops arriving, or the meta tag it is named in
+# gets renamed, the only symptom is an unfurl that quietly loses its image —
+# which nobody notices until it is pasted somewhere public. Fail here instead.
+# Runs before the compression below so the .gz matches the rewritten HTML.
+RUN test -f build/web/og-image.png \
+ && if [ -n "${SITE_URL}" ]; then \
+      sed -i "s#content=\"og-image.png\"#content=\"${SITE_URL%/}/og-image.png\"#g" \
+        build/web/index.html \
+      && grep -q "content=\"${SITE_URL%/}/og-image.png\"" build/web/index.html; \
+    fi
 
 # Trim, then precompress. The .symbols files are stack-trace maps for
 # `flutter symbolize`, several MB the browser never asks for. Everything

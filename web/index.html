@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -18,18 +18,48 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Replaces the pencil-and-paper score sheet for the domino game Chicken Foot. You play the dominoes; it tracks the rounds, the running totals, the penalties, and who won.">
+  <meta name="theme-color" content="#2E7D5B">
+
+  <!--
+    Link previews — what Discord, Slack, iMessage and the rest render when
+    somebody pastes the URL. Without these they fall back to the page title and
+    show no image at all.
+
+    og-image.png is a relative URL, which resolves against the <base> above and
+    so survives being served from a subpath. Crawlers do resolve it, but the
+    Open Graph spec asks for an absolute one; the image build rewrites both
+    tags when given --build-arg SITE_URL=https://example.com.
+
+    og:url is deliberately absent rather than guessed: crawlers fall back to the
+    URL they fetched, which is always right, whereas a wrong canonical is not.
+  -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Chicken Foot">
+  <meta property="og:title" content="Chicken Foot">
+  <meta property="og:description" content="A score keeper for the domino game. Every double gets its round, the house rules do the arithmetic, and the lowest total wins.">
+  <meta property="og:image" content="og-image.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Chicken Foot — three dominoes branching from a point on a green felt background">
+
+  <!-- Also read by Discord, which uses it to choose the wide card over the thumbnail. -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Chicken Foot">
+  <meta name="twitter:description" content="A score keeper for the domino game. Every double gets its round, the house rules do the arithmetic, and the lowest total wins.">
+  <meta name="twitter:image" content="og-image.png">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="chicken_foot">
+  <meta name="apple-mobile-web-app-title" content="Chicken Foot">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>chicken_foot</title>
+  <title>Chicken Foot</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>

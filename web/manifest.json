@@ -1,11 +1,11 @@
 {
-    "name": "chicken_foot",
-    "short_name": "chicken_foot",
+    "name": "Chicken Foot",
+    "short_name": "Chicken Foot",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#2E7D5B",
+    "theme_color": "#2E7D5B",
+    "description": "A score keeper for the domino game. Every double gets its round, the house rules do the arithmetic, and the lowest total wins.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
